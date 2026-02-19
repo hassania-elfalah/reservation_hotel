@@ -110,7 +110,7 @@ class ReservationController extends Controller {
     // Lister réservations d'un client
     public function mesReservations() {
         $reservations = Reservation::where('client_id', Auth::id())
-            ->with(['chambre.typeChambre', 'chambre.images'])
+            ->with(['chambre.typeChambre', 'chambre.images', 'review'])
             ->orderBy('created_at', 'desc')
             ->get();
         

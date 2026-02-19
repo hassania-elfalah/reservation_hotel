@@ -1,6 +1,7 @@
 import { MapPin, Phone, Mail, Facebook, Instagram, Twitter, Linkedin, Youtube, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSettings } from '@/context/SettingsContext';
+import { motion } from 'framer-motion';
 
 interface SocialNetwork {
   id: string;
@@ -47,66 +48,104 @@ const Footer = () => {
   };
 
   return (
-    <footer className="border-t border-white/10 bg-[#0A1629] dark:bg-[#020817] text-white py-12">
+    <footer className="border-t border-gray-100 dark:border-white/10 bg-white dark:bg-[#020817] text-slate-800 dark:text-gray-200 py-8 transition-colors duration-300">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="grid grid-cols-1 md:grid-cols-4 gap-8"
+        >
           <div className="space-y-4">
-            <img src="/logo.png" alt="Logo" className="h-24 w-auto object-contain bg-white/5 p-2 rounded-xl" />
+            <motion.img
+              whileHover={{ scale: 1.05 }}
+              src={settings.logo_url.startsWith('/') && !settings.logo_url.startsWith('/storage') ? settings.logo_url : `${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '')}${settings.logo_url}`}
+              alt={settings.hotel_name}
+              className="h-24 w-auto object-contain bg-white/5 p-2 rounded-xl"
+            />
             <p className="text-sm opacity-70 leading-relaxed max-w-xs">Découvrez l'excellence de l'hospitalité marocaine à travers un séjour inoubliable dans notre établissement.</p>
           </div>
 
           <div>
-            <h4 className="font-display font-bold text-xl mb-6 relative inline-block">
+            <h4 className="font-display font-bold text-xl mb-4 relative inline-block">
               Liens
-              <span className="absolute -bottom-2 left-0 w-12 h-1 bg-[#D4A017] rounded-full"></span>
+              <motion.span
+                initial={{ width: 0 }}
+                whileInView={{ width: 48 }}
+                className="absolute -bottom-1 left-0 h-0.5 bg-[#D4A017] rounded-full"
+              ></motion.span>
             </h4>
-            <ul className="space-y-3 text-sm opacity-70">
-              {sections.links.map(l => (
-                <li key={l.label}>
+            <ul className="space-y-1.5 text-sm opacity-70">
+              {sections.links.map((l, i) => (
+                <motion.li
+                  key={l.label}
+                  initial={{ opacity: 0, x: -10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                >
                   <Link to={l.href} className="hover:text-primary transition-colors flex items-center gap-2 group">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity"></span>
                     {l.label}
                   </Link>
-                </li>
+                </motion.li>
               ))}
             </ul>
           </div>
 
           <div>
-            <h4 className="font-display font-bold text-xl mb-6 relative inline-block">
+            <h4 className="font-display font-bold text-xl mb-4 relative inline-block">
               Contact
-              <span className="absolute -bottom-2 left-0 w-12 h-1 bg-[#D4A017] rounded-full"></span>
+              <motion.span
+                initial={{ width: 0 }}
+                whileInView={{ width: 48 }}
+                className="absolute -bottom-1 left-0 h-0.5 bg-[#D4A017] rounded-full"
+              ></motion.span>
             </h4>
-            <ul className="space-y-4 text-sm opacity-70">
+            <ul className="space-y-1.5 text-sm opacity-70">
               {sections.contact.map((c, i) => (
-                <li key={i} className="flex items-start gap-3">
+                <motion.li
+                  key={i}
+                  initial={{ opacity: 0, x: -10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + (i * 0.1) }}
+                  className="flex items-start gap-3"
+                >
                   <c.icon className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <span className="leading-snug">{c.text}</span>
-                </li>
+                </motion.li>
               ))}
             </ul>
           </div>
 
           <div>
-            <h4 className="font-display font-bold text-xl mb-6 relative inline-block">
+            <h4 className="font-display font-bold text-xl mb-4 relative inline-block">
               Suivez-nous
-              <span className="absolute -bottom-2 left-0 w-12 h-1 bg-[#D4A017] rounded-full"></span>
+              <motion.span
+                initial={{ width: 0 }}
+                whileInView={{ width: 48 }}
+                className="absolute -bottom-1 left-0 h-0.5 bg-[#D4A017] rounded-full"
+              ></motion.span>
             </h4>
             {socialNetworks.length > 0 ? (
-              <div className="flex flex-wrap gap-4 pt-2">
-                {socialNetworks.filter(s => s.url).map((social) => {
+              <div className="flex flex-wrap gap-4 pt-1">
+                {socialNetworks.filter(s => s.url).map((social, i) => {
                   const IconComponent = getSocialIcon(social.name);
                   return (
-                    <a
+                    <motion.a
                       key={social.id}
+                      initial={{ scale: 0 }}
+                      whileInView={{ scale: 1 }}
+                      whileHover={{ scale: 1.2, rotate: 10 }}
+                      transition={{ delay: 0.4 + (i * 0.1) }}
                       href={social.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       title={social.name}
-                      className="p-3.5 rounded-full bg-white/5 border border-white/10 hover:bg-[#D4A017] hover:border-[#D4A017] hover:text-white transition-all duration-300 transform hover:scale-110 active:scale-95"
+                      className="p-3.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-[#D4A017] hover:border-[#D4A017] hover:text-white transition-all duration-300"
                     >
-                      <IconComponent size={20} className="transition-transform group-hover:rotate-[360deg] duration-500" />
-                    </a>
+                      <IconComponent size={20} />
+                    </motion.a>
                   );
                 })}
               </div>
@@ -114,15 +153,20 @@ const Footer = () => {
               <p className="text-xs opacity-50 pt-2">Aucun réseau social configuré</p>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="mt-20 pt-8 border-t border-white/10">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="mt-12 pt-6 border-t border-white/10"
+        >
           <div className="flex justify-center">
             <p className="text-xs opacity-50 text-center">
               © {new Date().getFullYear()} {settings.hotel_name}. PFE - Système de Réservation. Tous droits réservés.
             </p>
           </div>
-        </div>
+        </motion.div>
       </div>
     </footer>
   );

@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             TypeChambreSeeder::class,
             ChambreSeeder::class,
             ImageChambreSeeder::class,
+            SettingSeeder::class,
         ]);
     }
 }

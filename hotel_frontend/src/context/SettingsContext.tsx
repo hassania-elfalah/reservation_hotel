@@ -6,6 +6,7 @@ interface Settings {
     hotel_address: string;
     hotel_phone: string;
     hotel_email: string;
+    logo_url: string;
     social_facebook: string;
     social_instagram: string;
     social_twitter: string;
@@ -23,6 +24,7 @@ const defaultSettings: Settings = {
     hotel_address: '123 Avenue de l’Excellence, Marrakech 40000',
     hotel_phone: '+212 5 22 00 00 00',
     hotel_email: 'contact@hotel-excellence.com',
+    logo_url: '/logo.png',
     social_facebook: '#',
     social_instagram: '#',
     social_twitter: '#'

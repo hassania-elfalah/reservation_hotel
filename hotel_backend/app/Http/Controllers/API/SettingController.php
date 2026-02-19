@@ -24,8 +24,18 @@ class SettingController extends Controller
     {
         $data = $request->validate([
             'settings' => 'required|array',
-            'settings.*' => 'nullable|string'
+            'settings.*' => 'nullable|string',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
         ]);
+
+        // Gérer l'upload du logo si présent
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->store('logos', 'public');
+            Setting::updateOrCreate(
+                ['key' => 'logo_url'],
+                ['value' => '/storage/' . $path]
+            );
+        }
 
         foreach ($data['settings'] as $key => $value) {
             Setting::updateOrCreate(

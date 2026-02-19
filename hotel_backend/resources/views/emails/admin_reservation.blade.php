@@ -13,6 +13,19 @@
 </head>
 <body>
     <div class="container">
+        <div style="text-align: center; margin-bottom: 30px;">
+            @php
+                if(!isset($settings)) {
+                    $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
+                }
+                $logoPath = isset($settings['logo_url']) ? public_path(ltrim($settings['logo_url'], '/')) : null;
+            @endphp
+            @if($logoPath && file_exists($logoPath))
+                <img src="{{ $message->embed($logoPath) }}" alt="Logo" style="max-height: 60px;">
+            @else
+                <h2 style="color: #D4A017; letter-spacing: 5px; text-transform: uppercase;">{{ $settings['hotel_name'] ?? 'HOUSE HOME' }}</h2>
+            @endif
+        </div>
         <h1>Nouvelle demande de réservation reçue !</h1>
         <p>Une nouvelle réservation a été effectuée sur le site.</p>
         

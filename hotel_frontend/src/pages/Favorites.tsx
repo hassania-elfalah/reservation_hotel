@@ -84,7 +84,9 @@ const Favorites = () => {
         <Layout>
             <div className="container mx-auto px-4 py-12">
                 <div className="mb-12 text-center flex flex-col items-center">
-                    <div className="mb-4 h-16 w-16 flex items-center justify-center rounded-2xl bg-red-50 text-red-500"><Heart className="h-8 w-8 fill-current" /></div>
+                    <div className="mb-4 h-16 w-16 flex items-center justify-center rounded-2xl bg-red-50 text-red-500 shadow-lg shadow-red-500/40 hover:shadow-xl hover:shadow-red-500/50 hover:-rotate-6 transition-all duration-400 cursor-pointer">
+                        <Heart className="h-8 w-8 fill-current" />
+                    </div>
                     <h1 className="text-4xl font-bold">Mes Favoris</h1>
                     <p className="mt-4 text-muted-foreground">Retrouvez vos coups de cœur ici.</p>
                 </div>

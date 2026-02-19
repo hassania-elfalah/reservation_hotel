@@ -66,6 +66,45 @@ class AuthController extends Controller
         ]);
     }
 
+    public function forgotPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = Utilisateur::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Aucun utilisateur trouvé avec cet email'
+            ], 404);
+        }
+
+        // Générer un mot de passe temporaire
+        $tempPassword = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+        
+        // Mettre à jour dans la base de données
+        $user->mot_de_passe = \Illuminate\Support\Facades\Hash::make($tempPassword);
+        $user->save();
+
+        // Envoyer l'email
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\ForgotPasswordMail($user, $tempPassword));
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de l\'envoi de l\'email : ' . $e->getMessage()
+            ], 500);
+        }
+        
+        return response()->json([
+            'message' => 'Un nouveau mot de passe a été envoyé à votre adresse email.'
+        ]);
+    }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Menu, X, User, Calendar } from 'lucide-react';
+import { useSettings } from '@/context/SettingsContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { settings } = useSettings();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="flex w-full h-20 items-center justify-between px-8">
         <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
-          <img src="/logo.png" alt="Logo" className="h-16 w-auto object-contain" />
+          <img src={settings.logo_url.startsWith('/') && !settings.logo_url.startsWith('/storage') ? settings.logo_url : `${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '')}${settings.logo_url}`} alt={settings.hotel_name} className="h-16 w-auto object-contain" />
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">

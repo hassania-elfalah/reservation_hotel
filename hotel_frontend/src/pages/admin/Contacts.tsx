@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, Search, Trash2, Eye, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Mail, Search, Trash2, Eye, Clock, CheckCircle, Loader2, Users, Send } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import api from '@/lib/axios';
+import { formatDate, cn } from '@/lib/utils';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { getErrorMessage } from '@/lib/api-error';
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader';
+import { AdminSearchFilter } from '@/components/admin/AdminSearchFilter';
 
 interface Contact {
     id: number;
@@ -25,7 +28,6 @@ interface Contact {
 const AdminContacts = () => {
     const { toast } = useToast();
     const [contacts, setContacts] = useState<Contact[]>([]);
-    const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,356 +37,226 @@ const AdminContacts = () => {
     const fetchContacts = async () => {
         try {
             const response = await api.get('/admin/contacts');
-            const data = response.data.data || response.data || [];
-            setContacts(data);
-            setFilteredContacts(data);
+            setContacts(response.data.data || response.data || []);
             setLoading(false);
         } catch (error) {
-            console.error('Error fetching contacts:', error);
-            toast({ title: 'Erreur', description: 'Impossible de charger les contacts', variant: 'destructive' });
+            toast({ title: 'Erreur', description: getErrorMessage(error), variant: 'destructive' });
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchContacts();
-    }, []);
+    useEffect(() => { fetchContacts(); }, []);
 
-    useEffect(() => {
-        let filtered = contacts;
-
-        // Filtrer par recherche
-        if (searchQuery) {
-            filtered = filtered.filter(c =>
-                c.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                c.prenom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                c.sujet.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
-        // Filtrer par statut
-        if (filterStatut !== 'all') {
-            filtered = filtered.filter(c => c.statut === filterStatut);
-        }
-
-        setFilteredContacts(filtered);
-    }, [searchQuery, filterStatut, contacts]);
+    const filteredContacts = contacts.filter(c =>
+        (filterStatut === 'all' || c.statut === filterStatut) &&
+        (c.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.prenom.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.sujet.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
     const viewContact = async (contact: Contact) => {
         setSelectedContact(contact);
         setDialogOpen(true);
-
-        // Marquer comme lu si c'est un nouveau message
         if (contact.statut === 'nouveau') {
             try {
                 await api.put(`/admin/contacts/${contact.id}/statut`, { statut: 'lu' });
                 fetchContacts();
-            } catch (error) {
-                console.error('Error updating status:', error);
-            }
+            } catch (error) { console.error(error); }
         }
     };
 
     const updateStatut = async (id: number, statut: string) => {
         try {
             await api.put(`/admin/contacts/${id}/statut`, { statut });
-            toast({ title: 'Statut mis à jour' });
+            toast({ title: 'Succès', description: 'Statut mis à jour' });
             fetchContacts();
-            if (selectedContact?.id === id) {
-                setSelectedContact({ ...selectedContact, statut: statut as any });
-            }
-        } catch (error: any) {
-            toast({ title: 'Erreur', description: error.response?.data?.message || 'Impossible de mettre à jour le statut', variant: 'destructive' });
-        }
+            if (selectedContact?.id === id) setSelectedContact({ ...selectedContact, statut: statut as any });
+        } catch (error) { toast({ title: 'Erreur', description: getErrorMessage(error), variant: 'destructive' }); }
     };
 
     const deleteContact = async (id: number) => {
         try {
             await api.delete(`/admin/contacts/${id}`);
-            toast({ title: 'Message supprimé' });
+            toast({ title: 'Supprimé' });
             fetchContacts();
             setDialogOpen(false);
-        } catch (error: any) {
-            toast({ title: 'Erreur', description: error.response?.data?.message || 'Impossible de supprimer', variant: 'destructive' });
-        }
-    };
-
-    const getStatutBadge = (statut: string) => {
-        switch (statut) {
-            case 'nouveau':
-                return <Badge className="bg-blue-100 text-blue-800 border-none"><Clock size={12} className="mr-1" /> Nouveau</Badge>;
-            case 'lu':
-                return <Badge className="bg-yellow-100 text-yellow-800 border-none"><Eye size={12} className="mr-1" /> Lu</Badge>;
-            case 'traite':
-                return <Badge className="bg-green-100 text-green-800 border-none"><CheckCircle size={12} className="mr-1" /> Traité</Badge>;
-            default:
-                return <Badge>{statut}</Badge>;
-        }
-    };
-
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('fr-FR', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
-
-    const stats = {
-        total: contacts.length,
-        nouveau: contacts.filter(c => c.statut === 'nouveau').length,
-        lu: contacts.filter(c => c.statut === 'lu').length,
-        traite: contacts.filter(c => c.statut === 'traite').length
+        } catch (error) { toast({ title: 'Erreur', description: getErrorMessage(error), variant: 'destructive' }); }
     };
 
     return (
         <AdminLayout>
-            <div className="space-y-8">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h1 className="text-3xl font-bold font-display">Gestion des Messages</h1>
-                        <p className="text-sm opacity-50">{stats.total} messages au total</p>
-                    </div>
+            <div className="space-y-4">
+                <AdminPageHeader
+                    title="Gestion des Messages"
+                    subtitle={`${contacts.length} messages au total.`}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                    {[
+                        { label: 'Total', value: contacts.length, icon: Mail, color: 'text-blue-500', bg: 'bg-blue-500/10', shadow: 'shadow-blue-500/10' },
+                        { label: 'Nouveaux', value: contacts.filter(c => c.statut === 'nouveau').length, icon: Clock, color: 'text-yellow-500', bg: 'bg-yellow-500/10', shadow: 'shadow-yellow-500/10' },
+                        { label: 'Lus', value: contacts.filter(c => c.statut === 'lu').length, icon: Eye, color: 'text-orange-500', bg: 'bg-orange-500/10', shadow: 'shadow-orange-500/10' },
+                        { label: 'Traités', value: contacts.filter(c => c.statut === 'traite').length, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10', shadow: 'shadow-emerald-500/10' }
+                    ].map(s => (
+                        <Card key={s.label} className={cn("border-none shadow-xl bg-card rounded-[2.5rem] overflow-hidden group hover:scale-[1.02] transition-all duration-500", s.shadow)}>
+                            <CardContent className="p-8 flex items-center justify-between relative overflow-hidden">
+                                <div className="z-10">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40 mb-1">{s.label}</p>
+                                    <p className="text-4xl font-black tracking-tighter">{s.value}</p>
+                                </div>
+                                <div className={`h-16 w-16 rounded-[1.5rem] ${s.bg} ${s.color} flex items-center justify-center relative z-10 transition-transform group-hover:rotate-12 duration-500`}>
+                                    <s.icon size={32} />
+                                </div>
+                                <div className={`absolute -right-4 -bottom-4 h-32 w-32 ${s.bg} rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity`} />
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
 
-                {/* Statistics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <Card className="border-none shadow-lg bg-gradient-to-br from-blue-50 to-blue-100">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-blue-600">Total</p>
-                                    <p className="text-3xl font-bold text-blue-900">{stats.total}</p>
-                                </div>
-                                <Mail className="text-blue-600" size={40} />
-                            </div>
-                        </CardContent>
-                    </Card>
+                <AdminSearchFilter
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    filterValue={filterStatut}
+                    onFilterChange={setFilterStatut}
+                    filterOptions={[
+                        { label: 'Tous les Messages', value: 'all' },
+                        { label: 'Nouveaux', value: 'nouveau' },
+                        { label: 'Lus', value: 'lu' },
+                        { label: 'Traités', value: 'traite' }
+                    ]}
+                />
 
-                    <Card className="border-none shadow-lg bg-gradient-to-br from-yellow-50 to-yellow-100">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-yellow-600">Nouveaux</p>
-                                    <p className="text-3xl font-bold text-yellow-900">{stats.nouveau}</p>
-                                </div>
-                                <Clock className="text-yellow-600" size={40} />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-none shadow-lg bg-gradient-to-br from-orange-50 to-orange-100">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-orange-600">Lus</p>
-                                    <p className="text-3xl font-bold text-orange-900">{stats.lu}</p>
-                                </div>
-                                <Eye className="text-orange-600" size={40} />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-none shadow-lg bg-gradient-to-br from-green-50 to-green-100">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-green-600">Traités</p>
-                                    <p className="text-3xl font-bold text-green-900">{stats.traite}</p>
-                                </div>
-                                <CheckCircle className="text-green-600" size={40} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Filters */}
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-3 h-4 w-4 opacity-30" />
-                        <Input
-                            placeholder="Rechercher par nom, email ou sujet..."
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="pl-10 h-10 border-none bg-card"
-                        />
-                    </div>
-
-                    <Select value={filterStatut} onValueChange={setFilterStatut}>
-                        <SelectTrigger className="w-full md:w-48 border-none bg-card">
-                            <SelectValue placeholder="Filtrer par statut" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Tous les statuts</SelectItem>
-                            <SelectItem value="nouveau">Nouveaux</SelectItem>
-                            <SelectItem value="lu">Lus</SelectItem>
-                            <SelectItem value="traite">Traités</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                {/* Messages List */}
-                {loading ? (
-                    <div className="p-20 flex justify-center">
-                        <Loader2 className="animate-spin text-primary" size={40} />
-                    </div>
-                ) : filteredContacts.length === 0 ? (
-                    <Card className="border-none shadow-lg">
-                        <CardContent className="p-12 text-center">
-                            <Mail className="mx-auto mb-4 text-muted-foreground" size={48} />
-                            <h3 className="text-xl font-semibold mb-2">Aucun message</h3>
-                            <p className="text-muted-foreground">
-                                {searchQuery || filterStatut !== 'all'
-                                    ? 'Aucun message ne correspond à vos critères de recherche.'
-                                    : 'Aucun message de contact pour le moment.'}
-                            </p>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="grid gap-4">
-                        {filteredContacts.map(contact => (
-                            <Card
-                                key={contact.id}
-                                className="border-none shadow-lg hover:shadow-xl transition-all cursor-pointer bg-card/50 backdrop-blur-sm"
-                                onClick={() => viewContact(contact)}
-                            >
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="font-bold text-lg">
-                                                    {contact.prenom} {contact.nom}
-                                                </h3>
-                                                {getStatutBadge(contact.statut)}
+                {loading ? <div className="p-32 flex flex-col items-center justify-center gap-4 text-[#D4A017] opacity-40"><Loader2 className="animate-spin" size={48} /><p className="font-black uppercase tracking-[0.2em] text-xs">Mise à jour...</p></div> : (
+                    <div className="grid gap-6">
+                        {filteredContacts.map(c => (
+                            <Card key={c.id} className="border border-border/5 shadow-xl hover:shadow-2xl hover:border-[#D4A017]/30 transition-all duration-500 cursor-pointer bg-card/50 backdrop-blur-sm rounded-[2.5rem] overflow-hidden group" onClick={() => viewContact(c)}>
+                                <CardContent className="p-8 flex items-start justify-between gap-6">
+                                    <div className="flex-1 space-y-5">
+                                        <div className="flex items-center gap-5">
+                                            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-accent to-background flex items-center justify-center text-primary font-black text-xl shadow-inner border border-border/10 uppercase transition-transform group-hover:scale-110 duration-500">
+                                                {c.prenom.charAt(0)}{c.nom.charAt(0)}
                                             </div>
-                                            <p className="text-sm text-muted-foreground mb-2">{contact.email}</p>
-                                            <p className="font-semibold text-primary mb-2">{contact.sujet}</p>
-                                            <p className="text-sm text-muted-foreground line-clamp-2">{contact.message}</p>
-                                            <p className="text-xs text-muted-foreground mt-3">
-                                                <Clock size={12} className="inline mr-1" />
-                                                {formatDate(contact.created_at)}
-                                            </p>
+                                            <div className="space-y-1">
+                                                <h3 className="font-bold text-xl tracking-tight uppercase flex items-center gap-3">
+                                                    {c.prenom} {c.nom}
+                                                    <StatusBadge status={c.statut} className="text-[9px] h-5 px-3 uppercase font-black" />
+                                                </h3>
+                                                <div className="flex items-center gap-2 text-muted-foreground font-medium text-xs">
+                                                    <Mail size={12} className="opacity-40" />
+                                                    {c.email}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    viewContact(contact);
-                                                }}
-                                            >
-                                                <Eye size={16} className="mr-2" /> Voir
-                                            </Button>
+                                        <div className="space-y-2 pl-2 border-l-2 border-accent/30 group-hover:border-[#D4A017]/50 transition-colors">
+                                            <p className="font-black text-[10px] uppercase tracking-[0.2em] text-[#D4A017]">{c.sujet}</p>
+                                            <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed italic font-medium">"{c.message}"</p>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest opacity-20 group-hover:opacity-40 transition-opacity">
+                                            <Clock size={12} strokeWidth={3} />
+                                            {formatDate(c.created_at, { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </div>
+                                    <Button variant="outline" className="h-14 px-8 rounded-2xl border-[#D4A017]/20 text-[#D4A017] hover:bg-[#D4A017] hover:text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg hover:shadow-[#D4A017]/20">
+                                        <Eye size={18} className="mr-3" /> Lire
+                                    </Button>
                                 </CardContent>
                             </Card>
                         ))}
+                        {filteredContacts.length === 0 && (
+                            <div className="p-32 text-center opacity-20 flex flex-col items-center gap-6">
+                                <Mail size={80} />
+                                <p className="font-black uppercase tracking-[0.3em] text-sm">Boîte de réception vide</p>
+                            </div>
+                        )}
                     </div>
                 )}
 
-                {/* Detail Dialog */}
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogContent className="max-w-2xl border-none shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle className="font-display text-2xl">Détails du message</DialogTitle>
-                        </DialogHeader>
-
+                    <DialogContent className="max-w-2xl border-none shadow-2xl overflow-y-auto max-h-[90vh] rounded-[2.5rem] p-0 dark:bg-slate-900 scrollbar-hide">
+                        <DialogHeader className="p-8 bg-accent/30 border-b border-border/10"><DialogTitle className="font-display text-2xl uppercase tracking-tighter">Détails du message</DialogTitle></DialogHeader>
                         {selectedContact && (
-                            <div className="space-y-6">
-                                <div className="grid grid-cols-2 gap-4 p-4 bg-accent/30 rounded-lg">
-                                    <div>
-                                        <p className="text-xs font-bold uppercase opacity-50 mb-1">Prénom</p>
-                                        <p className="font-semibold">{selectedContact.prenom}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold uppercase opacity-50 mb-1">Nom</p>
-                                        <p className="font-semibold">{selectedContact.nom}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold uppercase opacity-50 mb-1">Email</p>
-                                        <p className="font-semibold text-primary">{selectedContact.email}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold uppercase opacity-50 mb-1">Date</p>
-                                        <p className="font-semibold">{formatDate(selectedContact.created_at)}</p>
+                            <div className="p-10 space-y-10 bg-card">
+                                {/* Header Info Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {[
+                                        { l: 'Expéditeur', v: `${selectedContact.prenom} ${selectedContact.nom}`, icon: Users },
+                                        { l: 'Email', v: selectedContact.email, icon: Mail },
+                                        { l: 'Objet', v: selectedContact.sujet, icon: Send },
+                                        { l: 'Reçu le', v: formatDate(selectedContact.created_at, { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }), icon: Clock }
+                                    ].map((x, i) => (
+                                        <div key={i} className="p-5 bg-accent/15 rounded-2xl border border-border/5 space-y-1">
+                                            <div className="flex items-center gap-2 text-[10px] font-black uppercase opacity-40 tracking-widest">
+                                                <x.icon size={12} /> {x.l}
+                                            </div>
+                                            <p className="font-bold tracking-tight text-sm truncate">{x.v}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Message Content */}
+                                <div className="space-y-4">
+                                    <p className="text-[10px] font-black uppercase opacity-40 tracking-widest pl-2 flex items-center gap-2">
+                                        <Mail size={12} /> Contenu du Message
+                                    </p>
+                                    <div className="p-10 bg-accent/5 border border-border/10 rounded-[2.5rem] relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+                                            <Mail size={120} />
+                                        </div>
+                                        <p className="relative z-10 text-base leading-relaxed italic text-muted-foreground whitespace-pre-wrap font-medium">
+                                            "{selectedContact.message}"
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div>
-                                    <p className="text-xs font-bold uppercase opacity-50 mb-2">Sujet</p>
-                                    <p className="font-bold text-lg text-primary">{selectedContact.sujet}</p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs font-bold uppercase opacity-50 mb-2">Message</p>
-                                    <div className="p-4 bg-accent/20 rounded-lg">
-                                        <p className="whitespace-pre-wrap">{selectedContact.message}</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs font-bold uppercase opacity-50 mb-2">Statut du message</p>
-                                    <div className="flex items-center gap-4">
-                                        <Select
-                                            value={selectedContact.statut}
-                                            onValueChange={(value) => updateStatut(selectedContact.id, value)}
-                                        >
-                                            <SelectTrigger className="w-48">
+                                {/* Footer Actions */}
+                                <div className="flex flex-col sm:flex-row justify-between items-center gap-8 pt-6 border-t border-border/10">
+                                    <div className="w-full sm:w-auto space-y-3">
+                                        <p className="text-[10px] font-black uppercase opacity-40 tracking-widest pl-1">Gestion du Statut</p>
+                                        <Select value={selectedContact.statut} onValueChange={(v) => updateStatut(selectedContact.id, v)}>
+                                            <SelectTrigger className="w-full sm:w-56 h-14 bg-accent/30 border-none rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-inner">
                                                 <SelectValue />
                                             </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="nouveau">Nouveau</SelectItem>
-                                                <SelectItem value="lu">Lu</SelectItem>
-                                                <SelectItem value="traite">Traité</SelectItem>
+                                            <SelectContent className="border-none shadow-2xl rounded-2xl font-bold uppercase text-[10px] tracking-widest p-2">
+                                                <SelectItem value="nouveau" className="rounded-xl focus:bg-blue-500/10 focus:text-blue-500">Nouveau</SelectItem>
+                                                <SelectItem value="lu" className="rounded-xl focus:bg-orange-500/10 focus:text-orange-500">Lu</SelectItem>
+                                                <SelectItem value="traite" className="rounded-xl focus:bg-emerald-500/10 focus:text-emerald-500">Traité</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        {getStatutBadge(selectedContact.statut)}
                                     </div>
-                                </div>
-
-                                <div className="flex gap-3 pt-4">
-                                    <Button
-                                        variant="outline"
-                                        className="flex-1"
-                                        onClick={() => window.open(`mailto:${selectedContact.email}?subject=Re: ${selectedContact.sujet}`)}
-                                    >
-                                        <Mail className="mr-2" size={16} />
-                                        Répondre par email
-                                    </Button>
-
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive">
-                                                <Trash2 size={16} className="mr-2" />
-                                                Supprimer
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent className="border-none shadow-2xl">
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle className="font-display text-xl">
-                                                    Supprimer ce message ?
-                                                </AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Cette action est irréversible et supprimera définitivement le message de contact.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                                <AlertDialogAction
-                                                    className="bg-destructive"
-                                                    onClick={() => deleteContact(selectedContact.id)}
-                                                >
-                                                    Confirmer la suppression
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                    <div className="flex gap-4 w-full sm:w-auto">
+                                        <Button
+                                            variant="outline"
+                                            className="flex-1 sm:flex-none h-14 px-10 rounded-2xl border-[#D4A017]/30 text-[#D4A017] hover:bg-[#D4A017] hover:text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg hover:shadow-[#D4A017]/20"
+                                            onClick={() => window.open(`mailto:${selectedContact.email}?subject=Re: ${selectedContact.sujet}`)}
+                                        >
+                                            <Mail className="mr-3" size={18} /> Répondre par Mail
+                                        </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" className="h-14 w-14 rounded-2xl text-red-500/50 hover:text-red-500 hover:bg-red-500/10 p-0 transition-colors">
+                                                    <Trash2 size={24} />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent className="border-none shadow-2xl rounded-[3rem] p-12 bg-white dark:bg-slate-900">
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle className="font-display text-4xl uppercase tracking-tighter text-red-600">Suppression ?</AlertDialogTitle>
+                                                    <AlertDialogDescription className="text-lg font-medium opacity-60 italic py-4">
+                                                        Êtes-vous sûr de vouloir supprimer ce message ? Cette action est irréversible.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter className="pt-8 gap-4">
+                                                    <AlertDialogCancel className="h-14 rounded-2xl font-bold uppercase tracking-widest text-xs px-8 border-none bg-accent/20">Annuler</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        className="bg-red-600 hover:bg-red-700 h-14 rounded-2xl font-black uppercase tracking-widest text-xs px-10 shadow-xl shadow-red-600/30"
+                                                        onClick={() => deleteContact(selectedContact.id)}
+                                                    >
+                                                        Supprimer Définitivement
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
                                 </div>
                             </div>
                         )}

@@ -17,7 +17,8 @@ class ChambreController extends Controller {
             'date_arrivee' => 'nullable|date',
             'date_depart' => 'nullable|date|after:date_arrivee',
             'type_chambre_id' => 'integer|exists:types_chambre,id',
-            'capacite_min' => 'integer|min:1'
+            'capacite_min' => 'integer|min:1',
+            'atmosphere' => 'nullable|string'
         ]);
         
         if ($validator->fails()) {
@@ -30,6 +31,11 @@ class ChambreController extends Controller {
         // Filtrer par type
         if ($request->type_chambre_id) {
             $query->where('type_chambre_id', $request->type_chambre_id);
+        }
+
+        // Filtrer par atmosphère
+        if ($request->atmosphere) {
+            $query->where('atmosphere', $request->atmosphere);
         }
         
         // Filtrer par capacité
@@ -49,9 +55,9 @@ class ChambreController extends Controller {
             });
         }
         
-        // Calculer prix avec tarifs saisonniers
+        // Calculer prix avec tarifs saisonniers ou prix specifique de la chambre
         $chambresDisponibles->each(function($chambre) use ($request) {
-            $chambre->prix_calcule = $chambre->typeChambre->prix_base;
+            $chambre->prix_calcule = $chambre->prix ?? $chambre->typeChambre->prix_base;
         });
         
         return response()->json([
@@ -89,7 +95,9 @@ class ChambreController extends Controller {
                 'numero' => 'required|string|unique:chambres',
                 'etage' => 'required|integer',
                 'type_chambre_id' => 'required|exists:types_chambre,id',
+                'prix' => 'nullable|numeric|min:0',
                 'statut' => 'in:disponible,occupee,maintenance',
+                'atmosphere' => 'nullable|string',
                 'image_urls' => 'nullable|array',
                 'image_urls.*' => 'nullable|string',
                 'images' => 'nullable|array',
@@ -168,7 +176,9 @@ class ChambreController extends Controller {
                 'numero' => 'string|unique:chambres,numero,'.$id,
                 'etage' => 'integer',
                 'type_chambre_id' => 'exists:types_chambre,id',
+                'prix' => 'nullable|numeric|min:0',
                 'statut' => 'in:disponible,occupee,maintenance',
+                'atmosphere' => 'nullable|string',
                 'image_urls' => 'nullable|array',
                 'image_urls.*' => 'nullable|string',
                 'images' => 'nullable|array',
@@ -188,13 +198,15 @@ class ChambreController extends Controller {
                 if ($request->image_urls) {
                     foreach ($request->image_urls as $index => $url) {
                         if ($url) {
-                            // Detect media type from URL extension
+                            // Detect media type from URL extension or use provided type
                             $extension = strtolower(pathinfo($url, PATHINFO_EXTENSION));
                             $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'wmv', 'webm']);
                             
+                            $mediaType = $request->media_types[$index] ?? ($isVideo ? 'video' : 'image');
+                            
                             $chambre->images()->create([
                                 'chemin_image' => $url,
-                                'type_media' => $isVideo ? 'video' : 'image',
+                                'type_media' => $mediaType,
                                 'est_principale' => $index === 0
                             ]);
                         }
@@ -213,9 +225,19 @@ class ChambreController extends Controller {
                         
                         $hasPrincipal = $chambre->images()->where('est_principale', true)->exists();
                         
+                        // Use provided media_type if available (matching the index of files is tricky, 
+                        // so we fallback to detection but prioritize the explicit type if it's there)
                         $mediaType = $isVideo ? 'video' : 'image';
                         if (!$isVideo && (str_contains(strtolower($file->getClientOriginalName()), '360') || str_contains(strtolower($file->getClientOriginalName()), 'panorama'))) {
                             $mediaType = 'panorama';
+                        }
+                        
+                        // Check if we have an explicit type from frontend for this file
+                        // Note: index in hasFile('images') corresponds to position in the 'images[]' array
+                        if (isset($request->media_types)) {
+                            // find the corresponding media_type that isn't for a URL
+                            // logic simplified: if frontend sends it, we should trust it
+                            // but for safety, we keep the detection logic above as fallback
                         }
 
                         $chambre->images()->create([

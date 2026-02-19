@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Calendar, Users, Search, X } from 'lucide-react';
-import { roomTypes } from '@/lib/data';
+import api from '@/lib/axios';
 
 interface RoomFiltersProps {
   onFilter: (filters: FilterState) => void;
@@ -27,6 +27,11 @@ const RoomFilters = ({ onFilter }: RoomFiltersProps) => {
     type: 'all',
     priceRange: [0, 10000],
   });
+  const [types, setTypes] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get('/types-chambre').then(res => setTypes(res.data)).catch(console.error);
+  }, []);
 
   const handleFilterChange = (key: keyof FilterState, value: any) => {
     const newFilters = { ...filters, [key]: value };
@@ -89,7 +94,7 @@ const RoomFilters = ({ onFilter }: RoomFiltersProps) => {
             value={filters.guests.toString()}
             onValueChange={(value) => handleFilterChange('guests', parseInt(value))}
           >
-            <SelectTrigger>
+            <SelectTrigger id="guests">
               <SelectValue placeholder="Nombre" />
             </SelectTrigger>
             <SelectContent>
@@ -104,19 +109,19 @@ const RoomFilters = ({ onFilter }: RoomFiltersProps) => {
 
         {/* Room Type */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Type de chambre</Label>
+          <Label htmlFor="roomType" className="text-sm font-medium">Type de chambre</Label>
           <Select
             value={filters.type}
             onValueChange={(value) => handleFilterChange('type', value)}
           >
-            <SelectTrigger>
+            <SelectTrigger id="roomType">
               <SelectValue placeholder="Tous les types" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les types</SelectItem>
-              {Object.entries(roomTypes).map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
+              {types.map((t) => (
+                <SelectItem key={t.id} value={t.id.toString()}>
+                  {t.nom}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -125,10 +130,11 @@ const RoomFilters = ({ onFilter }: RoomFiltersProps) => {
 
         {/* Price Range */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">
+          <Label htmlFor="priceRange" className="text-sm font-medium">
             Prix: {filters.priceRange[0].toLocaleString()} - {filters.priceRange[1].toLocaleString()} MAD
           </Label>
           <Slider
+            id="priceRange"
             value={filters.priceRange}
             onValueChange={(value) => handleFilterChange('priceRange', value as [number, number])}
             min={0}

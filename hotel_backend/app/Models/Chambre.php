@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 class Chambre extends Model {
-    protected $fillable = ['numero', 'etage', 'type_chambre_id', 'statut'];
+    protected $fillable = ['numero', 'etage', 'type_chambre_id', 'prix', 'statut', 'atmosphere'];
     
     protected $casts = [
-        'statut' => 'string'
+        'statut' => 'string',
+        'prix' => 'decimal:2'
     ];
     
     public function typeChambre() {
@@ -21,6 +22,10 @@ class Chambre extends Model {
     
     public function images() {
         return $this->hasMany(ImageChambre::class);
+    }
+
+    public function reviews() {
+        return $this->hasMany(Review::class);
     }
     
     // Vérifier disponibilité

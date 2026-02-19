@@ -31,4 +31,9 @@ class Reservation extends Model
     {
         return $this->belongsTo(Utilisateur::class, 'client_id');
     }
+
+    public function review()
+    {
+        return $this->hasOne(Review::class);
+    }
 }

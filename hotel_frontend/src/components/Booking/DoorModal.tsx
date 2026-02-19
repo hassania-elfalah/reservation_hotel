@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { useSettings } from '@/context/SettingsContext';
 
 interface DoorModalProps {
     isOpen: boolean;
@@ -10,6 +11,11 @@ interface DoorModalProps {
 }
 
 const DoorModal: React.FC<DoorModalProps> = ({ isOpen, onClose, children, title }) => {
+    const { settings } = useSettings();
+    const logoSrc = settings.logo_url.startsWith('/') && !settings.logo_url.startsWith('/storage')
+        ? settings.logo_url
+        : `${(import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '')}${settings.logo_url}`;
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -43,7 +49,7 @@ const DoorModal: React.FC<DoorModalProps> = ({ isOpen, onClose, children, title 
 
                                 {/* Half Logo Left */}
                                 <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-[600px] h-[600px] opacity-40 pointer-events-none z-10">
-                                    <img src="/logo.png" alt="" className="h-full w-full object-contain invert" />
+                                    <img src={logoSrc} alt="" className="h-full w-full object-contain invert" />
                                 </div>
                             </motion.div>
 
@@ -62,7 +68,7 @@ const DoorModal: React.FC<DoorModalProps> = ({ isOpen, onClose, children, title 
 
                                 {/* Half Logo Right */}
                                 <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-[600px] h-[600px] opacity-40 pointer-events-none z-10">
-                                    <img src="/logo.png" alt="" className="h-full w-full object-contain invert" />
+                                    <img src={logoSrc} alt="" className="h-full w-full object-contain invert" />
                                 </div>
                             </motion.div>
                         </div>

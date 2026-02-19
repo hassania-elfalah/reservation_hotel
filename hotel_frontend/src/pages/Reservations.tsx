@@ -8,11 +8,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Calendar, Clock, User, X, CalendarDays, Loader2, Download } from 'lucide-react';
 import api from '@/lib/axios';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ReviewModal } from '@/components/common/ReviewModal';
+import { Star } from 'lucide-react';
 
 const Reservations = () => {
   const { toast } = useToast();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewingRes, setReviewingRes] = useState<any>(null);
 
   const fetchRes = () => {
     api.get('/mes-reservations').then(res => { setList(res.data.data); setLoading(false); }).catch(() => setLoading(false));
@@ -64,8 +67,8 @@ const Reservations = () => {
               <Card key={r.id} className="overflow-hidden flex flex-col lg:flex-row shadow-lg border-none bg-card/50 backdrop-blur-sm">
                 <div className="w-full lg:w-64 h-48 lg:h-auto bg-muted overflow-hidden relative flex items-center justify-center">
                   {(() => {
-                    const images = (r.chambre?.images && r.chambre.images.length > 0) ? r.chambre.images : [];
-                    const firstMedia = images.find((m: any) => m.chemin_image) || images[0];
+                    const images = r.chambre?.images || [];
+                    const firstMedia = images.find((m: any) => m.type_media === 'video' || m.chemin_image) || images[0];
                     let src = firstMedia?.chemin_image || (typeof firstMedia === 'string' ? firstMedia : null);
 
                     const getPlaceholder = () => {
@@ -79,47 +82,58 @@ const Reservations = () => {
                     const fallback = getPlaceholder();
 
                     if (src) {
-                      // Normalize URL: replace 127.0.0.1 with localhost for Windows compatibility
                       src = src.replace('127.0.0.1', 'localhost');
-
-                      // Resolve relative paths
                       if (!src.startsWith('http') && !src.startsWith('data:')) {
                         const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
                         const cleanBase = backendUrl.endsWith('/') ? backendUrl.slice(0, -1) : backendUrl;
-                        src = `${cleanBase}${src.startsWith('/') ? '' : '/'}${src}`;
+
+                        // Laravel storage path fix
+                        const path = src.startsWith('/') ? src : `/${src}`;
+                        if (!path.startsWith('/storage') && !path.startsWith('/public')) {
+                          src = `${cleanBase}/storage${path}`;
+                        } else {
+                          src = `${cleanBase}${path}`;
+                        }
                       }
                     } else {
                       src = fallback;
                     }
 
-                    // Detection logic for videos
                     const isVideo = firstMedia?.type_media === 'video' || (typeof src === 'string' && /\.(mp4|webm|mov|ogg)$/i.test(src));
 
-                    if (isVideo && src !== fallback) {
-                      return (
-                        <video
-                          key={src}
-                          src={src}
-                          className="w-full h-full object-cover"
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                        />
-                      );
-                    }
-
                     return (
-                      <img
-                        src={src}
-                        className="w-full h-full object-cover"
-                        alt=""
-                        onError={(e: any) => {
-                          if (e.target.src !== fallback) {
-                            e.target.src = fallback;
-                          }
-                        }}
-                      />
+                      <div className="w-full h-full relative group">
+                        {isVideo && src !== fallback ? (
+                          <video
+                            key={src}
+                            src={src}
+                            className="w-full h-full object-cover"
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            onLoadedMetadata={(e) => {
+                              (e.target as HTMLVideoElement).play().catch(() => { });
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src={src}
+                            className="w-full h-full object-cover"
+                            alt=""
+                            onError={(e: any) => {
+                              if (e.target.src !== fallback) {
+                                e.target.src = fallback;
+                              }
+                            }}
+                          />
+                        )}
+                        {!r.chambre && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] font-bold text-center px-2 uppercase tracking-tighter">
+                            Chambre Indisponible
+                          </div>
+                        )}
+                      </div>
                     );
                   })()}
                 </div>
@@ -161,7 +175,7 @@ const Reservations = () => {
                           size="sm"
                           className="h-9 border-[#D4A017] text-[#D4A017] hover:bg-[#D4A017] hover:text-white"
                         >
-                          <Download size={16} className="mr-2" /> Télécharger mon Badge
+                          <Download size={16} className="mr-2" /> Mon Badge
                         </Button>
                       )}
                       <AlertDialog>
@@ -169,6 +183,23 @@ const Reservations = () => {
                         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Annuler cette réservation ?</AlertDialogTitle><AlertDialogDescription>Cette action ne peut pas être annulée.</AlertDialogDescription></AlertDialogHeader>
                           <AlertDialogFooter><AlertDialogCancel>Garder</AlertDialogCancel><AlertDialogAction onClick={() => annuler(r.id)} className="bg-destructive">Confirmer l'annulation</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
                       </AlertDialog>
+                    </div>
+                  )}
+
+                  {r.statut === 'terminee' && !r.review && (
+                    <div className="mt-6">
+                      <Button
+                        onClick={() => setReviewingRes(r)}
+                        className="h-10 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold px-6 shadow-lg shadow-emerald-500/20"
+                      >
+                        <Star size={16} className="mr-2" /> Laisser un avis
+                      </Button>
+                    </div>
+                  )}
+
+                  {r.statut === 'terminee' && r.review && (
+                    <div className="mt-6 flex items-center gap-2 text-emerald-500 font-bold text-sm">
+                      <Star size={16} className="fill-current" /> Avis envoyé
                     </div>
                   )}
                 </div>
@@ -179,6 +210,15 @@ const Reservations = () => {
           <Card className="py-20 text-center text-muted-foreground border-dashed bg-transparent"><CalendarDays className="mx-auto h-16 w-16 mb-4 opacity-20" /><h3 className="text-xl font-bold">Aucune réservation trouvée</h3><p className="mt-2">Commencez par choisir une chambre pour votre prochain séjour.</p></Card>
         )}
       </div>
+      {reviewingRes && (
+        <ReviewModal
+          isOpen={!!reviewingRes}
+          onClose={() => setReviewingRes(null)}
+          reservationId={reviewingRes.id}
+          roomName={`${reviewingRes.chambre?.type_chambre?.nom} #${reviewingRes.chambre?.numero}`}
+          onSuccess={fetchRes}
+        />
+      )}
     </Layout>
   );
 };

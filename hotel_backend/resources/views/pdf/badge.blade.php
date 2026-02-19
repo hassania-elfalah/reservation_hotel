@@ -19,8 +19,26 @@
 <body>
     <div class="badge">
         <div class="header">
-            <div class="logo">HÔTEL HASSANIA</div>
-            <div style="font-size: 12px;">BADGE DE RÉSERVATION</div>
+            @php
+                if(!isset($settings)) {
+                    $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
+                }
+                $fullPath = isset($settings['logo_url']) ? public_path(ltrim($settings['logo_url'], '/')) : null;
+                $base64 = '';
+                if ($fullPath && file_exists($fullPath)) {
+                    $type = pathinfo($fullPath, PATHINFO_EXTENSION);
+                    $data = file_get_contents($fullPath);
+                    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                }
+            @endphp
+            @if($base64)
+                <img src="{{ $base64 }}" style="max-height: 50px; margin-bottom: 5px;">
+            @else
+                <div style="font-size: 18px; font-weight: 300; letter-spacing: 8px; text-transform: uppercase; color: #ffffff; border: 1px solid rgba(255,255,255,0.4); padding: 5px 15px; display: inline-block; margin-bottom: 10px;">
+                    {{ $settings['hotel_name'] ?? 'HASSANIA' }}
+                </div>
+            @endif
+            <div style="font-size: 10px; opacity: 0.8; letter-spacing: 2px;">BADGE DE RÉSERVATION</div>
         </div>
         <div class="content">
             <div class="row">

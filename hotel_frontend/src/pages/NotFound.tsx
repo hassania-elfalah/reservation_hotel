@@ -1,24 +1,31 @@
-import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import Layout from "@/components/layout/Layout";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const NotFound = () => {
-  const location = useLocation();
-
-  useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-muted">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">404</h1>
-        <p className="mb-4 text-xl text-muted-foreground">Oops! Page not found</p>
-        <a href="/" className="text-primary underline hover:text-primary/90">
-          Return to Home
-        </a>
-      </div>
-    </div>
-  );
+    return (
+        <Layout>
+            <div className="min-h-[80vh] flex items-center justify-center bg-accent/30">
+                <div className="text-center space-y-6">
+                    <div className="flex justify-center">
+                        <div className="h-24 w-24 rounded-full bg-red-100 flex items-center justify-center text-red-500">
+                            <AlertTriangle size={48} />
+                        </div>
+                    </div>
+                    <h1 className="text-4xl font-black font-display uppercase tracking-tight">404 - Page Introuvable</h1>
+                    <p className="text-muted-foreground font-medium max-w-md mx-auto">
+                        La page que vous recherchez semble ne pas exister ou a été déplacée.
+                    </p>
+                    <Link to="/">
+                        <Button size="lg" className="bg-[#D4A017] hover:bg-[#B8860B] text-white">
+                            Retour à l'accueil
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+        </Layout>
+    );
 };
 
 export default NotFound;

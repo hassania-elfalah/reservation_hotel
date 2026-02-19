@@ -8,6 +8,9 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+import { MediaRenderer } from '@/components/common/MediaRenderer';
+import { formatCurrency } from '@/lib/utils';
+
 interface RoomCardProps {
   room: Room;
   onBook?: (room: Room) => void;
@@ -39,39 +42,18 @@ const RoomCard = ({ room, onBook }: RoomCardProps) => {
     localStorage.setItem('favorites', JSON.stringify(newFavorites));
     setIsFavorite(!isFavorite);
 
-    // Dispatch event for other components (like Favorites page) to update
     window.dispatchEvent(new Event('favoritesUpdated'));
   };
 
   return (
     <Card className="group overflow-hidden transition-all duration-300 hover:shadow-xl">
       <div className="relative aspect-[4/3] overflow-hidden">
-        {(() => {
-          const firstMedia: any = room.images[0];
-          const isVideo = typeof firstMedia === 'object' && firstMedia?.type_media === 'video';
-          const src = typeof firstMedia === 'object' ? firstMedia.chemin_image : firstMedia;
-
-          if (isVideo) {
-            return (
-              <video
-                src={src}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                autoPlay
-                loop
-                muted
-                playsInline
-              />
-            );
-          }
-
-          return (
-            <img
-              src={src}
-              alt={room.name}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-            />
-          );
-        })()}
+        <MediaRenderer
+          src={typeof room.images[0] === 'object' ? (room.images[0] as any).chemin_image : room.images[0]}
+          type={typeof room.images[0] === 'object' ? (room.images[0] as any).type_media : undefined}
+          className="transition-transform duration-500 group-hover:scale-110"
+          thumbnail={true}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
         <button
@@ -94,14 +76,21 @@ const RoomCard = ({ room, onBook }: RoomCardProps) => {
           </div>
         )}
 
-        <Badge className="absolute left-4 top-4 bg-primary text-primary-foreground">
-          {roomTypes[room.type]}
-        </Badge>
+        <div className="absolute left-4 top-4 flex gap-2">
+          <Badge className="bg-primary text-primary-foreground border-none">
+            {roomTypes[room.type]}
+          </Badge>
+          {room.atmosphere && (
+            <Badge className="bg-white/20 backdrop-blur-md text-white border-white/20 uppercase text-[9px] tracking-widest font-black">
+              ✨ {room.atmosphere}
+            </Badge>
+          )}
+        </div>
 
         <div className="absolute bottom-4 left-4 right-4">
           <h3 className="font-display text-xl font-bold text-white">{room.name}</h3>
           <p className="text-white/80 text-sm mt-1">
-            {room.price.toLocaleString('fr-MA')} MAD / nuit
+            {formatCurrency(room.price)} / nuit
           </p>
         </div>
       </div>

@@ -9,22 +9,28 @@ use App\Http\Controllers\API\ContactController;
 use App\Http\Controllers\API\SettingController;
 use App\Http\Controllers\API\Admin\AdminController;
 use App\Http\Controllers\API\Admin\ReservationController as AdminReservationController;
+use App\Http\Controllers\API\ReviewController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login'])->name('login');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 
 Route::get('/chambres', [ChambreController::class, 'rechercher']);
 Route::get('/chambres/{id}', [ChambreController::class, 'show']);
 Route::get('/types-chambre', function() {
     return response()->json(\App\Models\TypeChambre::all());
 });
+Route::get('/chambres/{id}/reviews', [ReviewController::class, 'index']);
 
 // Paramètres publics
 Route::get('/settings', [SettingController::class, 'index']);
 
 // Contact - route publique pour soumettre un message
 Route::post('/contact', [ContactController::class, 'store']);
+
+// Chatbot
+Route::post('/chatbot', [\App\Http\Controllers\API\ChatbotController::class, 'respond']);
 
 // Route for direct download from email (Signed URL) - Outside auth:sanctum
 Route::get('/reservations/{id}/badge/signed', [ReservationController::class, 'downloadBadgeSigned'])
@@ -46,9 +52,13 @@ Route::middleware('auth:sanctum')->group(function() {
     Route::put('/reservations/{id}/annuler', [ReservationController::class, 'annuler']);
     Route::get('/reservations/{id}/badge', [ReservationController::class, 'downloadBadge']);
     
+    // Avis (Reviews)
+    Route::post('/reviews', [ReviewController::class, 'store']);
+    
     // Admin routes
     Route::middleware('admin')->group(function() {
         Route::apiResource('/admin/chambres', ChambreController::class);
+        Route::get('/admin/reservations/{id}/invoice', [AdminReservationController::class, 'downloadInvoice']);
         Route::apiResource('/admin/reservations', AdminReservationController::class);
         Route::get('/admin/statistiques', [AdminController::class, 'statistiques']);
         
@@ -60,6 +70,12 @@ Route::middleware('auth:sanctum')->group(function() {
         Route::get('/admin/contacts/{id}', [ContactController::class, 'show']);
         Route::put('/admin/contacts/{id}/statut', [ContactController::class, 'updateStatut']);
         Route::delete('/admin/contacts/{id}', [ContactController::class, 'destroy']);
+        
+        // Modération des avis
+        Route::get('/admin/reviews', [ReviewController::class, 'adminIndex']);
+        Route::put('/admin/reviews/{id}/approve', [ReviewController::class, 'approve']);
+        Route::put('/admin/reviews/{id}/reject', [ReviewController::class, 'reject']);
+        Route::delete('/admin/reviews/{id}', [ReviewController::class, 'destroy']);
     });
 });
 

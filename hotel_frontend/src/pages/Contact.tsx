@@ -1,196 +1,152 @@
-import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Phone, MapPin, Send, Facebook, Instagram, Twitter, Linkedin, Youtube, Share2 } from "lucide-react";
-import { toast } from "sonner";
-import api from "@/lib/axios";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Mail, Phone, MapPin, Send, Check } from "lucide-react";
 import { useSettings } from "@/context/SettingsContext";
-
-interface SocialNetwork {
-    id: string;
-    name: string;
-    url: string;
-}
-
-const ContactInfo = ({ icon: Icon, title, content, sub }: any) => (
-    <div className="flex items-start gap-4 p-6 rounded-2xl bg-white shadow-lg border border-gray-100 transition-transform hover:scale-105">
-        <div className="p-3 rounded-xl bg-primary/10 text-primary"><Icon size={24} /></div>
-        <div>
-            <h3 className="font-bold text-lg">{title}</h3>
-            <p className="text-muted-foreground">{content}</p>
-            {sub && <p className="text-sm text-primary">{sub}</p>}
-        </div>
-    </div>
-);
+import { useState } from "react";
+import api from "@/lib/axios";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api-error";
 
 const Contact = () => {
     const { settings } = useSettings();
-    const [formData, setFormData] = useState({ prenom: '', nom: '', email: '', sujet: '', message: '' });
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    useEffect(() => {
-        // Fetch user info from localStorage
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        if (user.nom) {
-            const names = user.nom.split(' ');
-            setFormData(prev => ({
-                ...prev,
-                prenom: names[0] || '',
-                nom: names.slice(1).join(' ') || '',
-                email: user.email || ''
-            }));
-        }
-    }, []);
+    const [loading, setLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+    const [data, setData] = useState({ prenom: '', nom: '', email: '', sujet: '', message: '' });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
-
+        setLoading(true);
         try {
-            await api.post('/contact', formData);
-            toast.success("Message envoyé ! Nous vous répondrons bientôt.");
-            setFormData(prev => ({ ...prev, sujet: '', message: '' }));
-        } catch (error: any) {
-            const errorMsg = error.response?.data?.message || "Erreur lors de l'envoi du message";
-            toast.error(errorMsg);
+            await api.post('/contact', data);
+            toast.success('Votre message a été envoyé avec succès !');
+            setSubmitted(true);
+        } catch (error) {
+            toast.error(getErrorMessage(error));
         } finally {
-            setIsSubmitting(false);
+            setLoading(false);
         }
     };
 
-    // Parse social networks from settings
-    let socialNetworks: SocialNetwork[] = [];
-    try {
-        if (settings.social_networks) {
-            socialNetworks = JSON.parse(settings.social_networks);
-        }
-    } catch (e) {
-        console.error('Error parsing social networks:', e);
-    }
-
-    // Get icon based on network name
-    const getSocialIcon = (name: string) => {
-        const lowerName = name.toLowerCase();
-        if (lowerName.includes('facebook')) return Facebook;
-        if (lowerName.includes('instagram')) return Instagram;
-        if (lowerName.includes('twitter') || lowerName.includes('x')) return Twitter;
-        if (lowerName.includes('linkedin')) return Linkedin;
-        if (lowerName.includes('youtube')) return Youtube;
-        return Share2; // Default icon
+    const handleReset = () => {
+        setData({ prenom: '', nom: '', email: '', sujet: '', message: '' });
+        setSubmitted(false);
     };
 
     return (
         <Layout>
-            <div className="container mx-auto px-4 py-16">
-                <div className="text-center max-w-2xl mx-auto mb-16">
-                    <h1 className="text-5xl font-bold tracking-tight mb-4 font-display">Contactez-nous</h1>
-                    <p className="text-lg text-muted-foreground">Une question ? Une demande particulière ? Notre équipe est à votre écoute.</p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
-                    <div className="space-y-8">
-                        <h2 className="text-3xl font-semibold mb-6">Nos Coordonnées</h2>
-                        <div className="grid gap-6">
-                            <ContactInfo icon={MapPin} title='Notre Adresse' content={settings.hotel_address} />
-                            <ContactInfo icon={Phone} title='Téléphone' content={settings.hotel_phone} sub='Support 24h/24' />
-                            <ContactInfo icon={Mail} title='Email Direct' content={settings.hotel_email} />
-                        </div>
-                        <div className="pt-8">
-                            <h3 className="font-bold text-lg mb-4">Suivez notre actualité</h3>
-                            {socialNetworks.length > 0 ? (
-                                <div className="flex flex-wrap gap-4">
-                                    {socialNetworks.filter(s => s.url).map((social) => {
-                                        const IconComponent = getSocialIcon(social.name);
-                                        return (
-                                            <a
-                                                key={social.id}
-                                                href={social.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                title={social.name}
-                                                className="p-4 rounded-full bg-white/50 shadow-md hover:bg-[#D4A017] hover:text-white transition-all duration-300 transform hover:scale-110 active:scale-95"
-                                            >
-                                                <IconComponent size={20} />
-                                            </a>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">Aucun réseau social configuré</p>
-                            )}
-                        </div>
-                    </div>
-
-                    <Card className="border-none shadow-2xl bg-white/80 backdrop-blur-md">
-                        <CardContent className="p-8">
-                            <form className="space-y-6" onSubmit={handleSubmit}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Label>Prénom</Label>
-                                        <Input
-                                            value={formData.prenom}
-                                            onChange={e => setFormData({ ...formData, prenom: e.target.value })}
-                                            className="bg-gray-50/50"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Nom</Label>
-                                        <Input
-                                            value={formData.nom}
-                                            onChange={e => setFormData({ ...formData, nom: e.target.value })}
-                                            className="bg-gray-50/50"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Email</Label>
-                                    <Input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                        className="bg-gray-50/50"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Sujet</Label>
-                                    <Input
-                                        value={formData.sujet}
-                                        onChange={e => setFormData({ ...formData, sujet: e.target.value })}
-                                        placeholder="Ex: Réservation de groupe"
-                                        className="bg-gray-50/50"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Message</Label>
-                                    <Textarea
-                                        value={formData.message}
-                                        onChange={e => setFormData({ ...formData, message: e.target.value })}
-                                        placeholder="Comment pouvons-nous vous aider ?"
-                                        className="min-h-[150px] bg-gray-50/50"
-                                        required
-                                    />
-                                </div>
-                                <Button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="w-full h-12 text-lg bg-[#D4A017] hover:bg-[#B8860B] shadow-lg transition-all duration-300"
-                                >
-                                    <Send className="mr-2 h-5 w-5" />
-                                    {isSubmitting ? 'Envoi...' : 'Envoyer le message'}
-                                </Button>
-                            </form>
-                        </CardContent>
-                    </Card>
+            <div className="relative h-[40vh] min-h-[400px] flex items-center justify-center bg-black">
+                <div className="absolute inset-0 bg-cover bg-center opacity-40" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1920)' }} />
+                <div className="container relative z-10 text-center text-white space-y-4">
+                    <h1 className="text-5xl font-black font-display uppercase tracking-tight">Contactez-Nous</h1>
+                    <p className="text-lg opacity-80 max-w-xl mx-auto font-medium">Une question ou une demande particulière ? Notre équipe est à votre écoute 24/7.</p>
                 </div>
             </div>
+
+            <section className="py-20 bg-accent/30">
+                <div className="container mx-auto px-4 max-w-6xl">
+                    <div className="grid md:grid-cols-2 gap-12">
+                        <div className="space-y-8">
+                            <div>
+                                <h2 className="text-3xl font-bold font-display uppercase tracking-tight mb-4">Informations</h2>
+                                <p className="text-muted-foreground">Retrouvez-nous facilement ou contactez-nous directement via nos coordonnées officielles.</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                {[
+                                    {
+                                        icon: MapPin,
+                                        t: "Adresse",
+                                        v: settings.hotel_address || "123 Avenue Royale, Marrakech",
+                                        link: settings.hotel_map_link || (settings.hotel_address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.hotel_address)}` : "https://www.google.com/maps/search/?api=1&query=123+Avenue+Royale+Marrakech")
+                                    },
+                                    { icon: Phone, t: "Téléphone", v: settings.hotel_phone || "+212 524 00 00 00", link: `tel:${(settings.hotel_phone || "+212 524 00 00 00").replace(/\s/g, '')}` },
+                                    { icon: Mail, t: "Email", v: settings.hotel_email || "contact@hotel-palace.com", link: `mailto:${settings.hotel_email || "contact@hotel-palace.com"}` }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex gap-4 items-start p-6 bg-card rounded-[2rem] shadow-lg border border-border/50">
+                                        <div className="h-12 w-12 rounded-2xl bg-[#D4A017]/10 flex items-center justify-center text-[#D4A017] shrink-0">
+                                            <item.icon size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-sm uppercase tracking-widest opacity-40 mb-1">{item.t}</h3>
+                                            <a
+                                                href={item.link}
+                                                target={item.t === "Adresse" ? "_blank" : undefined}
+                                                rel={item.t === "Adresse" ? "noopener noreferrer" : undefined}
+                                                className="font-medium text-lg hover:text-[#D4A017] transition-colors"
+                                            >
+                                                {item.v}
+                                            </a>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+                            <CardHeader className="bg-[#D4A017] text-white p-8">
+                                <CardTitle className="flex items-center gap-3 text-2xl font-display uppercase tracking-tight">
+                                    <Send size={24} /> Envoyez-nous un message
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-8 space-y-6">
+                                {submitted ? (
+                                    <div className="py-12 text-center space-y-6 animate-in fade-in zoom-in duration-500">
+                                        <div className="h-24 w-24 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20">
+                                            <Check size={48} strokeWidth={3} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <h3 className="text-2xl font-black uppercase tracking-tight">Message Reçu !</h3>
+                                            <p className="text-muted-foreground font-medium">
+                                                Merci {data.prenom || 'pour votre message'}. <br />
+                                                Notre équipe vous répondra dans les plus brefs délais.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            onClick={handleReset}
+                                            variant="outline"
+                                            className="rounded-xl font-bold uppercase tracking-widest text-[10px] border-2 border-[#D4A017] text-[#D4A017] hover:bg-[#D4A017] hover:text-white"
+                                        >
+                                            Envoyer un autre message
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={handleSubmit} className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="prenom" className="uppercase text-[10px] font-black tracking-widest opacity-40">Prénom</Label>
+                                                <Input id="prenom" required value={data.prenom} onChange={e => setData({ ...data, prenom: e.target.value })} className="h-12 bg-accent/30 border-none rounded-xl" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="nom" className="uppercase text-[10px] font-black tracking-widest opacity-40">Nom</Label>
+                                                <Input id="nom" required value={data.nom} onChange={e => setData({ ...data, nom: e.target.value })} className="h-12 bg-accent/30 border-none rounded-xl" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="email" className="uppercase text-[10px] font-black tracking-widest opacity-40">Email</Label>
+                                            <Input id="email" required type="email" value={data.email} onChange={e => setData({ ...data, email: e.target.value })} className="h-12 bg-accent/30 border-none rounded-xl" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="sujet" className="uppercase text-[10px] font-black tracking-widest opacity-40">Sujet</Label>
+                                            <Input id="sujet" required value={data.sujet} onChange={e => setData({ ...data, sujet: e.target.value })} className="h-12 bg-accent/30 border-none rounded-xl" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="message" className="uppercase text-[10px] font-black tracking-widest opacity-40">Message</Label>
+                                            <Textarea id="message" required value={data.message} onChange={e => setData({ ...data, message: e.target.value })} className="min-h-[150px] bg-accent/30 border-none rounded-xl resize-none p-4" />
+                                        </div>
+                                        <Button type="submit" disabled={loading} className="w-full bg-[#D4A017] hover:bg-[#B8860B] h-14 rounded-2xl font-black uppercase tracking-widest text-xs">
+                                            {loading ? "Envoi en cours..." : "Envoyer le message"}
+                                        </Button>
+                                    </form>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </section>
         </Layout>
     );
 };

@@ -13,15 +13,19 @@ class ClientReservationConfirmed extends Mailable
     use Queueable, SerializesModels;
 
     public $reservation;
+    public $pdfContent;
+    public $settings;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct(Reservation $reservation)
+    public function __construct(Reservation $reservation, $pdfContent = null, $settings = [])
     {
         $this->reservation = $reservation;
+        $this->pdfContent = $pdfContent;
+        $this->settings = $settings;
     }
 
     /**
@@ -31,7 +35,15 @@ class ClientReservationConfirmed extends Mailable
      */
     public function build()
     {
-        return $this->subject('Confirmation de votre réservation')
+        $mail = $this->subject('Confirmation de votre réservation - ' . ($this->settings['hotel_name'] ?? 'Hôtel Palace'))
                     ->view('emails.client_reservation_confirmed');
+
+        if ($this->pdfContent) {
+            $mail->attachData($this->pdfContent, 'facture_reservation_' . $this->reservation->id . '.pdf', [
+                'mime' => 'application/pdf',
+            ]);
+        }
+
+        return $mail;
     }
 }
